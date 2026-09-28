@@ -1,7 +1,8 @@
-package com.lancydive.fleetflow.service;
+package com.lancydive.fleetflow.serviceImpl;
 
-import java.util.Optional;
-
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ import com.lancydive.fleetflow.exception.PasswordMismatchException;
 import com.lancydive.fleetflow.mapper.UserMapper;
 import com.lancydive.fleetflow.repository.UserRepository;
 import com.lancydive.fleetflow.security.JwtService;
+import com.lancydive.fleetflow.service.AuthService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class AuthServiceImpl implements AuthService {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
+	private final AuthenticationManager authenticationManager;
  
 	 @Transactional
 	 @Override
@@ -55,19 +58,18 @@ public class AuthServiceImpl implements AuthService {
 	 @Transactional
 	 @Override
 	 public LoginResponse login (LoginRequest request) {
-		 Optional<User> user = userRepository.findByEmail(request.getEmail());
-		 if (user.isEmpty()) {
-			 throw new InvalidCredentialsException("Invalid email or password.");
-		 }
-		 User existingUser = user.get();
-		 
-		 if(!passwordEncoder.matches(
-				    request.getPassword(),
-				    existingUser.getPassword()//matches(rawPassword, encodedPassword)
-				)) {
-			 throw new InvalidCredentialsException("Invalid email or password.");
-			 }
-		 
+		 try {
+			    authenticationManager.authenticate(
+			        new UsernamePasswordAuthenticationToken(
+			            request.getEmail(),
+			            request.getPassword()
+			        )
+			    );
+			} catch (AuthenticationException  e) {
+			    throw new InvalidCredentialsException("Invalid email or password.");
+			}
+		 User existingUser = userRepository.findByEmail(request.getEmail())
+				 .orElseThrow(()-> new IllegalStateException("Authenticated user not found."));
 		 String token = jwtService.generateAccessToken(existingUser);
 		 
 		 return LoginResponse.builder()

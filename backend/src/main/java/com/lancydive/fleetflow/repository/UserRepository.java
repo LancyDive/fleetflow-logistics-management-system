@@ -11,4 +11,5 @@ import com.lancydive.fleetflow.entity.User;
 public interface UserRepository extends JpaRepository<User, Long> {
 	Optional<User> findByEmail(String email);
 	boolean existsByEmail(String email);
+	boolean existsByEmailAndIdNot(String email, Long id);
 }
